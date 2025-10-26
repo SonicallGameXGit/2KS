@@ -72,6 +72,11 @@ mat2 rotate2D(float angle) {
 }
 
 void main() {
+    #ifdef NO_POSTPROCESSING
+        gl_FragData[0] = texture2D(texture, coord0);
+        return;
+    #endif
+
     float power = (1.0 - 1.0 / exp(distance(cameraPosition, previousCameraPosition) * 2.3)) * 0.5;
     vec2 texcoord = (coord0 * 2.0 - 1.0) / 1.1;
     float centerDistance = length(texcoord);

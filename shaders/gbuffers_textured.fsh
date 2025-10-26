@@ -1,40 +1,23 @@
-/*
-    XorDev's "Default Shaderpack"
-
-    This was put together by @XorDev to make it easier for anyone to make their own shaderpacks in Minecraft (Optifine).
-    You can do whatever you want with this code! Credit is not necessary, but always appreciated!
-
-    You can find more information about shaders in Optfine here:
-    https://github.com/sp614x/optifine/blob/master/OptiFineDoc/doc/shaders.txt
-
-*/
-//Declare GL version.
 #version 120
 
-//Diffuse (color) texture.
-uniform sampler2D texture;
-//Lighting from day/night + shadows + light sources.
-uniform sampler2D lightmap;
+varying vec4 v_Color;
+varying vec2 v_TexCoord;
+varying vec2 v_LMCoord;
+varying vec3 v_Normal;
+// varying vec3 v_EmissiveColor;
 
-//RGB/intensity for hurt entities and flashing creepers.
+uniform sampler2D texture, lightmap;
 uniform vec4 entityColor;
-//0-1 amount of blindness.
 uniform float blindness;
-
-//Vertex color.
-varying vec4 color;
-//Diffuse and lightmap texture coordinates.
-varying vec2 coord0;
-varying vec2 coord1;
+uniform int blockEntityId;
 
 void main() {
-    //Combine lightmap with blindness.
-    vec3 light = (1.-blindness) * texture2D(lightmap,coord1).rgb;
-    //Sample texture times lighting.
-    vec4 col = color * vec4(light,1) * texture2D(texture,coord0);
-    //Apply entity flashes.
-    col.rgb = mix(col.rgb,entityColor.rgb,entityColor.a);
+    vec3 light = (1.0 - blindness) * texture2D(lightmap, v_LMCoord).rgb;
+    vec4 col = v_Color * vec4(light, 1.0) * texture2D(texture, v_TexCoord);
+    col.rgb = mix(col.rgb, entityColor.rgb, entityColor.a);
 
-    //Output the result.
+    /* RENDERTARGETS: 0,1,2 */
     gl_FragData[0] = col;
+    gl_FragData[1] = vec4(v_Normal * 0.5 + 0.5, 1.0);
+    gl_FragData[2] = vec4(vec3(1.0, 0.3, 0.25) * 3.0, v_LMCoord.x);
 }

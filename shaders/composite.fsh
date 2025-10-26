@@ -9,26 +9,32 @@ const bool shadowHardwareFiltering = true;
 const int shadowMapResolution = SHADOWS_QUALITY;
 const bool shadowtex0MipmapEnabled = true;
 
-uniform sampler2D texture, depthtex0;
+varying vec4 color;
+varying vec2 coord0;
+
+uniform sampler2D texture, colortex1, colortex2, depthtex0;
 uniform sampler2DShadow shadowtex0;
 uniform vec3 cameraPosition, previousCameraPosition;
-uniform vec3 skyColor;
+uniform vec3 skyColor, sunPosition, moonPosition;
 uniform float far;
 uniform float frameTimeCounter;
 
 uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse, gbufferPreviousModelView, gbufferPreviousProjection;
 uniform mat4 shadowModelView, shadowProjection;
 
-varying vec4 color;
-varying vec2 coord0;
-
 void main() {
+    #ifdef NO_POSTPROCESSING
+        gl_FragData[0] = texture2D(texture, coord0);
+        return;
+    #endif
     gl_FragData[0] = color * texture2D(texture, coord0);
 
     float depth = texture2D(depthtex0, coord0).r;
     if (depth >= 1.0) {
         return;
     }
+
+    vec4 emission = texture2D(colortex2, coord0);
 
     #if defined(SHADOWS_ENABLED) || defined(FOG_ENABLED)
         vec3 NDCPos = vec3(coord0, depth) * 2.0 - 1.0;
@@ -38,9 +44,12 @@ void main() {
     #endif
 
     #ifdef SHADOWS_ENABLED
+        vec3 normal = texture2D(colortex1, coord0).rgb * 2.0 - 1.0;
+        float sunNormalProduct = max(dot(normal, (gbufferModelViewInverse * vec4(sunPosition * 0.01, 1.0)).xyz), 0.0);
+        float moonNormalProduct = max(dot(normal, (gbufferModelViewInverse * vec4(moonPosition * 0.01, 1.0)).xyz), 0.0);
         vec3 shadowViewPos = (shadowModelView * vec4(feetPlayerPos, 1.0)).xyz;
         vec4 shadowClipPos = shadowProjection * vec4(shadowViewPos, 1.0);
-        shadowClipPos.z -= 0.0025;
+        shadowClipPos.z -= max(0.001 * (sunNormalProduct + moonNormalProduct), 0.0001);
         shadowClipPos.xyz = distort(shadowClipPos.xyz);
         vec3 shadowNDCPos = shadowClipPos.xyz / shadowClipPos.w;
         vec3 shadowScreenPos = shadowNDCPos * 0.5 + 0.5;
@@ -52,11 +61,20 @@ void main() {
             }
         }
         shadow /= 9.0;
+        shadow *= min(sunNormalProduct + moonNormalProduct, 1.0);
         #ifdef FOG_ENABLED
             shadow = mix(0.5, shadow, pow(FOG_DISTANCE - 0.1, 0.6));
         #endif
 
-        gl_FragData[0].rgb = mix(gl_FragData[0].rgb * 0.5, gl_FragData[0].rgb * (shadow * SHADOWS_STRENGTH + (1.0 - SHADOWS_STRENGTH)), 1.0 - clamp(length(viewPos.xyz) / far * 4.0, 0.0, 1.0));
+        gl_FragData[0].rgb = mix(
+            gl_FragData[0].rgb * emission.rgb,
+            mix(
+                gl_FragData[0].rgb * 0.5,
+                gl_FragData[0].rgb * (shadow * SHADOWS_STRENGTH + (1.0 - SHADOWS_STRENGTH)),
+                (1.0 - clamp(length(viewPos.xyz) / far * 4.0, 0.0, 1.0))
+            ),
+            1.0 - emission.a
+        );
     #endif
     #ifdef FOG_ENABLED
         float fogFactor = exp(-FOG_DENSITY * (1.0 - length(viewPos.xyz) / far / FOG_DISTANCE));
