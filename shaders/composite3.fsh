@@ -45,7 +45,7 @@ const vec3[3] gaussianKernels = vec3[3](
         float val    = 0.5;
         if (tuv.x >= 0.0 && tuv.x < 8.0 && tuv.y >= 0.0 && tuv.y < 16.0) {
             float v = float(((bits[word] >> ((3 - byte) << 3u)) >> (7 - bit)) & 1u) * (4.0 - pow(length(tuv / vec2(8.0, 16.0) - 0.5), 0.5) * 4.0);
-            return vec2(v, 1.0 - v);
+            return vec2(v, 1.0);
         }
         return vec2(0.0);
     }
@@ -73,7 +73,7 @@ const vec3[3] gaussianKernels = vec3[3](
         text += character(DIGITS[minutes / 10], uv, vec2(cursor, y), textHeight); cursor += 8.0 / 16.0 * textHeight;
         text += character(DIGITS[minutes % 10], uv, vec2(cursor, y), textHeight); cursor += 8.0 / 16.0 * textHeight;
 
-        gl_FragData[0].rgb = mix(mix(gl_FragData[0].rgb, vec3(0.0), text.y), vec3(DATE_TIME_RED, DATE_TIME_GREEN, DATE_TIME_BLUE) * 2.0, text.x);
+        gl_FragData[0].rgb = mix(mix(clamp(gl_FragData[0].rgb, vec3(0.0), vec3(1.0)), vec3(0.0), smoothstep(0.0, 1.0, text.y) * 0.4), vec3(DATE_TIME_RED, DATE_TIME_GREEN, DATE_TIME_BLUE) * 2.0, text.x);
     }
 #endif
 
@@ -110,25 +110,22 @@ void main() {
     gl_FragData[0].rgb += max(pow(sharpenning, vec3(2.0)) * 64.0 * SHARPNESS_STRENGTH, 0.0);
     #ifdef TONEMAPPING_ENABLED
         gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(1.0 / GAMMA_CORRECTION));
-        gl_FragData[0].rgb += BRIGHTNESS_ADJUSTMENT;
+        gl_FragData[0].rgb -= 0.3;
     #endif
 
-    #if defined(TONEMAPPING_ENABLED)
+    #ifdef TONEMAPPING_ENABLED
         #ifdef DISTORTIONS_ENABLED
-            gl_FragData[0].rgb = mix(gl_FragData[0].rgb, floor(textureLod(texture, vec2(
+            gl_FragData[0].rgb = mix(gl_FragData[0].rgb, pow(floor(textureLod(texture, vec2(
                 texcoord.s + sin(texcoord.s * 124.4) * cos(texcoord.t * 84.234) * 0.001,
                 texcoord.t + sin(texcoord.t * 124.4) * cos(texcoord.s * 84.234) * 0.001
-            ), downsampling).rgb * 6.0) / 6.0, 0.15);
+            ), downsampling).rgb * 16.0) / 16.0, vec3(2.0)) * 4.0, 0.3);
         #endif
     #endif
 
     #ifdef TONEMAPPING_ENABLED
         gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(EXPOSURE_ADJUSTMENT));
     #endif
-    #ifdef VIGNETTE_ENABLED
-        gl_FragData[0].rgb *= min(1.5 / VIGNETTE_STRENGTH - centerDistance, 1.0);
-    #endif
-    #if defined(TONEMAPPING_ENABLED)
+    #ifdef TONEMAPPING_ENABLED
         #ifdef FLICKERING_ENABLED
             gl_FragData[0].rgb = mix(
                 gl_FragData[0].rgb,
@@ -151,18 +148,16 @@ void main() {
             gl_FragData[0].rgb *= vec3(0.8 + pow(texcoord.x, 2.0) * 0.1, 0.9 + pow(texcoord.y, 2.0) * 0.3, 0.9 + pow(texcoord.y, 2.0) * 0.5);
         #endif
     #endif
-    #ifdef DATE_TIME_ENABLED
-        drawText();
-    #endif
     #ifdef TONEMAPPING_ENABLED
         gl_FragData[0].rgb *= vec3(ADJUST_RED, ADJUST_GREEN, ADJUST_BLUE);
     #endif
-    float aspectOffset = pow(max(snoise(vec3(
-        texcoord * vec2(viewWidth, viewHeight) / downsampling,
-        frameTimeCounter * 10.0
-    )), 0.0), 6.0);
 
     #ifdef BORDER_ENABLED
+        float aspectOffset = pow(max(random(texcoord + sin(frameTimeCounter) * 10.0), 0.0), 64.0) * 0.2;
         gl_FragData[0].rgb *= abs((coord0.x * 2.0 - 1.0) * aspectRatio) + aspectOffset < 4.0 / 3.0 ? 1.0 : 0.0;
+    #endif
+
+    #ifdef DATE_TIME_ENABLED
+        drawText();
     #endif
 }

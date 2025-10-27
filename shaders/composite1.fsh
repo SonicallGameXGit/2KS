@@ -52,19 +52,6 @@ varying vec2 coord0;
     }
 #endif
 
-#ifdef BLOOM_ENABLED
-    const vec3[3] gaussianKernels = vec3[3](
-        vec3(0.0625, 0.125,  0.0625),
-        vec3( 0.125,  0.25,   0.125),
-        vec3(0.0625, 0.125,  0.0625)
-    );
-
-    vec3 bloom(in vec2 texcoord, in float lod) {
-        vec3 result = textureLod(texture, texcoord, lod).rgb;
-        return result * pow(dot(result, vec3(0.333)), 12.0);
-    }
-#endif
-
 mat2 rotate2D(float angle) {
     float s = sin(angle);
     float c = cos(angle);
@@ -95,8 +82,6 @@ void main() {
         texcoord.y += sin(frameTimeCounter * 0.32 * SHAKE_FLOW_SPEED + 12.291) * 0.04 * (1.0 + power) * SHAKE_FLOW_STRENGTH * SHAKE_STRENGTH;
         // micro .y shake
         texcoord.y += clamp(sin(frameTimeCounter * 21.3 * SHAKE_MICRO_SPEED - 0.324) * sin(frameTimeCounter * 7.6 * SHAKE_MICRO_SPEED - 2.242) * max(sin(frameTimeCounter * 0.2834 * SHAKE_MICRO_SPEED + 0.23) * sin(frameTimeCounter * 11.23 * SHAKE_MICRO_SPEED + 3.42) * sin(frameTimeCounter * 0.132 * SHAKE_MICRO_SPEED - 0.324) * 20.0, 0.0) * 1.3 - 0.3, -1.0, 1.0) * 0.001 * SHAKE_MICRO_STRENGTH * SHAKE_STRENGTH;
-        // rare small .y shake
-        // texcoord.y += pow(sin(frameTimeCounter * 7.342 - 3.423724) * cos(frameTimeCounter * 2.324 - 0.324) * sin(frameTimeCounter * 0.74 + 3482.23842), 2.0) * 0.005 * (1.0 + power * 2.7);
         // rare .y dropping effect
         texcoord.y += clamp(pow(sin(frameTimeCounter * 4.3 + 32.24) * cos(frameTimeCounter * 8.392 - 0.324) + cos(frameTimeCounter * 2.392 - 31.324)/*  + cos(frameTimeCounter * 0.312 + 0.324) * 4.0 */, 3.0), -1.0, 1.0) * 0.01 * (1.0 + power * 3.5) * SHAKE_DROP_STRENGTH * SHAKE_STRENGTH;
         // constant mini-shake
@@ -108,27 +93,21 @@ void main() {
         tiltAngle += floor(sin(frameTimeCounter * 0.5 * TILT_FLOW_SPEED) * 10.0) / 10.0 * 0.2 * TILT_STRENGTH * TILT_FLOW_STRENGTH + power;
         // second layer base rotation
         tiltAngle += sin(frameTimeCounter * 0.32 * TILT_FLOW_SPEED + 3.14) * 0.2 * TILT_FLOW_STRENGTH * TILT_STRENGTH;
-        // rare "camera interception" effect
-        // tiltAngle += pow(sin(frameTimeCounter * 3.0 + 1.32) * cos(frameTimeCounter * 1.2 + 0.23) * sin(frameTimeCounter * 0.7 + 2.32), 3.0) * 0.5;
-        // rare dropping effect
-        // tiltAngle += clamp((sin(frameTimeCounter * 4.3 * (1.0 + power * 2.5) + 32.24) * cos(frameTimeCounter * 9.23) + cos(frameTimeCounter * 0.3 + 0.1) * 4.0) * 3.0, -1.0, 1.0) * 0.1 * (1.0 + power * 3.4);
-        // constant shaking
-        // tiltAngle += pow(sin(frameTimeCounter * 1.0), 3.0) * 0.6 * pow(power, 2.0) * 0.2;
         texcoord.xy *= rotate2D(tiltAngle * 0.1);
     #endif
     texcoord.x /= aspectRatio;
     texcoord = texcoord * 0.5 + 0.5;
 
+    vec4 depth = texture2D(depthtex0, texcoord);
     vec3 color = texture2D(texture, texcoord).rgb;
     #ifdef MOTION_BLUR_ENABLED
-        color = MotionBlur(color, texcoord, texture2D(depthtex0, texcoord).r, random(texcoord * frameTimeCounter));
+        color = MotionBlur(color, texcoord, depth.r, random(texcoord * frameTimeCounter));
     #endif
 
-    #ifdef BLOOM_ENABLED
-        vec3 bloomColor = vec3(0.0);
-        bloomColor += bloom(texcoord, 6.0);
-        bloomColor += bloom(texcoord, 4.0) / 2.0;
-        color += bloomColor * BLOOM_STRENGTH;
-    #endif
+    /* RENDERTARGETS: 0,1,2 */
     gl_FragData[0] = vec4(color * 0.8, 1.0);
+    #ifdef BLOOM_ENABLED
+        gl_FragData[1] = vec4(color * smoothstep(0.3, 1.0, dot(color, vec3(0.333))), 1.0);
+    #endif
+    gl_FragData[2] = vec4(depth.rgb, 1.0);
 }

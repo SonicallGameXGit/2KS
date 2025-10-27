@@ -9,13 +9,13 @@ const bool shadowHardwareFiltering = true;
 const int shadowMapResolution = SHADOWS_QUALITY;
 const bool shadowtex0MipmapEnabled = true;
 
-varying vec4 color;
 varying vec2 coord0;
 
-uniform sampler2D texture, colortex1, colortex2, depthtex0;
+uniform sampler2D texture, colortex1, colortex3, depthtex0;
 uniform sampler2DShadow shadowtex0;
 uniform vec3 cameraPosition, previousCameraPosition;
-uniform vec3 skyColor, sunPosition, moonPosition;
+uniform vec3 sunPosition, moonPosition;
+uniform vec3 skyColor;
 uniform float far;
 uniform float frameTimeCounter;
 
@@ -27,14 +27,15 @@ void main() {
         gl_FragData[0] = texture2D(texture, coord0);
         return;
     #endif
-    gl_FragData[0] = color * texture2D(texture, coord0);
+    gl_FragData[0] = texture2D(texture, coord0);
 
     float depth = texture2D(depthtex0, coord0).r;
     if (depth >= 1.0) {
         return;
     }
 
-    vec4 emission = texture2D(colortex2, coord0);
+    vec3 emissiveColor = texture2D(colortex3, coord0).rgb;
+    float emission = max(dot(emissiveColor, vec3(0.333)), 0.0);
 
     #if defined(SHADOWS_ENABLED) || defined(FOG_ENABLED)
         vec3 NDCPos = vec3(coord0, depth) * 2.0 - 1.0;
@@ -67,18 +68,18 @@ void main() {
         #endif
 
         gl_FragData[0].rgb = mix(
-            gl_FragData[0].rgb * emission.rgb,
+            gl_FragData[0].rgb * mix(emissiveColor.rgb, vec3(emission), pow(1.0 - emission, 0.3)),
             mix(
-                gl_FragData[0].rgb * 0.5,
-                gl_FragData[0].rgb * (shadow * SHADOWS_STRENGTH + (1.0 - SHADOWS_STRENGTH)),
+                gl_FragData[0].rgb,
+                gl_FragData[0].rgb * (shadow * SHADOWS_STRENGTH + (1.0 - SHADOWS_STRENGTH))/*  * min(skyColor + 1.0, vec3(1.5)) */,
                 (1.0 - clamp(length(viewPos.xyz) / far * 4.0, 0.0, 1.0))
             ),
-            1.0 - emission.a
+            1.0 - emission
         );
     #endif
     #ifdef FOG_ENABLED
         float fogFactor = exp(-FOG_DENSITY * (1.0 - length(viewPos.xyz) / far / FOG_DISTANCE));
         fogFactor *= 1.0 + snoise((cameraPosition + feetPlayerPos) / 24.0 + frameTimeCounter * 0.3) * 0.2;
-        gl_FragData[0].rgb = mix(gl_FragData[0].rgb, skyColor, clamp(fogFactor, 0.0, 1.0));
+        gl_FragData[0].rgb = mix(gl_FragData[0].rgb, skyColor * 0.7, clamp(fogFactor, 0.0, 1.0));
     #endif
 }
