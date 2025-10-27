@@ -118,7 +118,7 @@ void main() {
             gl_FragData[0].rgb = mix(gl_FragData[0].rgb, pow(floor(textureLod(texture, vec2(
                 texcoord.s + sin(texcoord.s * 124.4) * cos(texcoord.t * 84.234) * 0.001,
                 texcoord.t + sin(texcoord.t * 124.4) * cos(texcoord.s * 84.234) * 0.001
-            ), downsampling).rgb * 16.0) / 16.0, vec3(2.0)) * 4.0, 0.3);
+            ), downsampling).rgb * 16.0) / 16.0, vec3(2.0)) * 4.0, 0.1);
         #endif
     #endif
 
