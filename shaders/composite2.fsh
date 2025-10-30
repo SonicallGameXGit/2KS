@@ -16,31 +16,35 @@ uniform mat4 gbufferProjection;
 
 varying vec2 coord0;
 
-vec3 bloomSample(in vec2 texcoord, in vec2 offset, in float lod) {
-    return textureLod(colortex1, texcoord + offset * pow(2.0, lod) / vec2(viewWidth, viewHeight), lod).rgb;
-}
-vec3 bloomKernel(in vec2 texcoord, in float lod) {
-    vec3 color = vec3(0.0);
-    color += bloomSample(texcoord, 0.5 * vec2(-2.0, -2.0) + vec2(0.0, 0.5), lod) * 0.125;
-    color += bloomSample(texcoord, 0.5 * vec2(-2.0,  2.0) + vec2(0.0, 0.5), lod) * 0.125;
-    color += bloomSample(texcoord, 0.5 * vec2( 2.0, -2.0) + vec2(0.0, 0.5), lod) * 0.125;
-    color += bloomSample(texcoord, 0.5 * vec2( 2.0,  2.0) + vec2(0.0, 0.5), lod) * 0.125;
-    color += bloomSample(texcoord, 0.5 * vec2(-1.0, -1.0) + vec2(0.0, 0.5), lod) * 0.5;
-    color += bloomSample(texcoord, 0.5 * vec2( 1.0,  1.0) + vec2(0.0, 0.5), lod) * 0.5;
-    color += bloomSample(texcoord, 0.5 * vec2(-1.0,  1.0) + vec2(0.0, 0.5), lod) * 0.5;
-    color += bloomSample(texcoord, 0.5 * vec2( 1.0, -1.0) + vec2(0.0, 0.5), lod) * 0.5;
-    color += bloomSample(texcoord, 0.5 * vec2( 0.0,  0.0) + vec2(0.0, 0.5), lod) * 0.125 * 4.0;
-    color += bloomSample(texcoord, 0.5 * vec2(-2.0,  0.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
-    color += bloomSample(texcoord, 0.5 * vec2( 2.0,  0.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
-    color += bloomSample(texcoord, 0.5 * vec2( 0.0, -2.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
-    color += bloomSample(texcoord, 0.5 * vec2( 0.0,  2.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
-    
-    return color;
-}
+#ifdef BLOOM_ENABLED
+    vec3 bloomSample(in vec2 texcoord, in vec2 offset, in float lod) {
+        return textureLod(colortex1, texcoord + offset * pow(2.0, lod) / vec2(viewWidth, viewHeight), lod).rgb;
+    }
+    vec3 bloomKernel(in vec2 texcoord, in float lod) {
+        vec3 color = vec3(0.0);
+        color += bloomSample(texcoord, 0.5 * vec2(-2.0, -2.0) + vec2(0.0, 0.5), lod) * 0.125;
+        color += bloomSample(texcoord, 0.5 * vec2(-2.0,  2.0) + vec2(0.0, 0.5), lod) * 0.125;
+        color += bloomSample(texcoord, 0.5 * vec2( 2.0, -2.0) + vec2(0.0, 0.5), lod) * 0.125;
+        color += bloomSample(texcoord, 0.5 * vec2( 2.0,  2.0) + vec2(0.0, 0.5), lod) * 0.125;
+        color += bloomSample(texcoord, 0.5 * vec2(-1.0, -1.0) + vec2(0.0, 0.5), lod) * 0.5;
+        color += bloomSample(texcoord, 0.5 * vec2( 1.0,  1.0) + vec2(0.0, 0.5), lod) * 0.5;
+        color += bloomSample(texcoord, 0.5 * vec2(-1.0,  1.0) + vec2(0.0, 0.5), lod) * 0.5;
+        color += bloomSample(texcoord, 0.5 * vec2( 1.0, -1.0) + vec2(0.0, 0.5), lod) * 0.5;
+        color += bloomSample(texcoord, 0.5 * vec2( 0.0,  0.0) + vec2(0.0, 0.5), lod) * 0.125 * 4.0;
+        color += bloomSample(texcoord, 0.5 * vec2(-2.0,  0.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
+        color += bloomSample(texcoord, 0.5 * vec2( 2.0,  0.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
+        color += bloomSample(texcoord, 0.5 * vec2( 0.0, -2.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
+        color += bloomSample(texcoord, 0.5 * vec2( 0.0,  2.0) + vec2(0.0, 0.5), lod) * 0.125 * 2.0;
+        
+        return color;
+    }
+#endif
 
-vec3 flare(in vec2 texcoord, in vec2 sunPositionOnScreen, in vec3 color, in float dist, in float radius, in float softness) {
-    return color * smoothstep(0.0, softness * radius * dist, radius * dist - distance(-sunPositionOnScreen.xy, ((texcoord - sunPositionOnScreen.xy) * 2.0 - 1.0) / dist));
-}
+#ifdef LENS_FLARE_ENABLED
+    vec3 flare(in vec2 texcoord, in vec2 sunPositionOnScreen, in vec3 color, in float dist, in float radius, in float softness) {
+        return color * smoothstep(0.0, softness * radius * dist, radius * dist - distance(-sunPositionOnScreen.xy, ((texcoord - sunPositionOnScreen.xy) * 2.0 - 1.0) / dist));
+    }
+#endif
 
 void main() {
     #ifdef NO_POSTPROCESSING
@@ -57,17 +61,17 @@ void main() {
         #ifdef BROKEN_BLOOM_ENABLED
             vec3 theseBrokenLines = vec3(0.0);
             for(int i = 0; i < 8; i++) {
-                theseBrokenLines += max(dot(textureLod(colortex1, vec2(coord0.x, (float(i) + random(coord0 + sin(frameTimeCounter))) * (1.0 / 8.0)), 3.0).rgb - 0.3, vec3(0.333)), 0.0);
+                theseBrokenLines += max(dot(textureLod(colortex1, vec2(coord0.s, (float(i) + random(coord0 + sin(frameTimeCounter))) * (1.0 / 8.0)), 3.0).rgb - 0.3, vec3(0.333)), 0.0);
             }
             bloom += vec3(0.4, 0.1, 0.9) * min(theseBrokenLines, 0.2) * BROKEN_BLOOM_STRENGTH;
         #endif
     #endif
     
     #ifdef CHROMATIC_ABBERATION_ENABLED
-        float chromaticAberrationAmount = CHROMATIC_ABBERATION_STRENGTH / viewWidth * DOWNSAMPLING;
-        float red = texture2D(texture, vec2(coord0.x + chromaticAberrationAmount, coord0.y)).r;
+        float chromaticAberrationAmount = CHROMATIC_ABBERATION_STRENGTH / viewWidth * float(DOWNSAMPLING);
+        float red = texture2D(texture, vec2(coord0.s + chromaticAberrationAmount, coord0.t)).r;
         float green = texture2D(texture, coord0).g;
-        float blue = texture2D(texture, vec2(coord0.x - chromaticAberrationAmount, coord0.y)).b;
+        float blue = texture2D(texture, vec2(coord0.s - chromaticAberrationAmount, coord0.t)).b;
 
         gl_FragData[0] = vec4(red, green, blue, 1.0);
     #else
@@ -77,7 +81,7 @@ void main() {
         gl_FragData[0].rgb += bloom;
     #endif
     #ifdef FILM_GRAIN_ENABLED
-        gl_FragData[0].rgb *= mix(random((vec2(fract(coord0 * vec2(viewWidth, viewHeight) / max(DOWNSAMPLING, 1.0) / 75.0) * 75.0)) + sin(frameTimeCounter) * 10.0) * 0.5 + 0.5, 1.0, 1.0 - FILM_GRAIN_STRENGTH);
+        gl_FragData[0].rgb *= mix(random((vec2(fract(coord0 * vec2(viewWidth, viewHeight) / max(float(DOWNSAMPLING), 1.0) / 75.0) * 75.0)) + sin(frameTimeCounter) * 10.0) * 0.5 + 0.5, 1.0, 1.0 - FILM_GRAIN_STRENGTH);
     #endif
 
     #ifdef LENS_FLARE_ENABLED
@@ -88,7 +92,7 @@ void main() {
         float lensAvailability = 0.0;
         for (int i = 0; i < 16; i++) {
             float angle = float(i) / 16.0 * 6.2831853;
-            lensAvailability += step(0.999, texture2D(colortex2, sunPositionOnScreen.st * 0.5 + 0.5 + (vec2(cos(angle), sin(angle)) * (sin(angle * 2.38123) * 0.5 + 0.5) * 32.0) / viewResolution).r);
+            lensAvailability += step(0.9996, texture2D(colortex2, sunPositionOnScreen.st * 0.5 + 0.5 + (vec2(cos(angle), sin(angle)) * (sin(angle * 2.38123) * 0.5 + 0.5) * 64.0) / viewResolution).r);
         }
         lensAvailability /= 16.0;
 

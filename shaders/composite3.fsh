@@ -4,11 +4,11 @@
 #include "/lib/noise.glsl"
 
 const bool colortex0MipmapEnabled = true;
+varying vec2 coord0;
 
 uniform float frameTimeCounter, aspectRatio;
 uniform float viewWidth, viewHeight;
-uniform sampler2D depthtex0, texture;
-varying vec2 coord0;
+uniform sampler2D depthtex0, colortex0;
 
 uniform int worldTime;
 
@@ -79,7 +79,7 @@ const vec3[3] gaussianKernels = vec3[3](
 
 void main() {
     #ifdef NO_POSTPROCESSING
-        gl_FragData[0] = texture2D(texture, coord0);
+        gl_FragData[0] = texture2D(colortex0, coord0);
         return;
     #endif
     
@@ -87,22 +87,26 @@ void main() {
     float centerDistance = length(texcoord * 2.0 - 1.0);
 
     float depth = pow(texture2D(depthtex0, texcoord).r, 128.0);
-    float downsampling = mix(DOWNSAMPLING, DOWNSAMPLING + 1.0, depth);
+    #ifdef DISTANCE_BLUR_ENABLED
+        float downsampling = mix(DOWNSAMPLING, DOWNSAMPLING + 1.0, depth);
+    #else
+        float downsampling = DOWNSAMPLING;
+    #endif
 
     vec2 viewResolution = vec2(viewWidth, viewHeight);
     vec2 downsampledWidth = pow(2.0, downsampling) / viewResolution;
 
     vec3 blurred = vec3(0.0);
-    blurred += textureLod(texture, texcoord + vec2(-1.0, -1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[0][0];
-    blurred += textureLod(texture, texcoord + vec2( 0.0, -1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[1][0];
-    blurred += textureLod(texture, texcoord + vec2( 1.0, -1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[2][0];
-    blurred += textureLod(texture, texcoord + vec2(-1.0,  1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[0][2];
-    blurred += textureLod(texture, texcoord + vec2( 0.0,  1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[1][2];
-    blurred += textureLod(texture, texcoord + vec2( 1.0,  1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[2][2];
-    blurred += textureLod(texture, texcoord + vec2(-1.0,  0.0) * downsampledWidth, downsampling).rgb * gaussianKernels[0][1];
-    blurred += textureLod(texture, texcoord + vec2( 1.0,  0.0) * downsampledWidth, downsampling).rgb * gaussianKernels[2][1];
+    blurred += textureLod(colortex0, texcoord + vec2(-1.0, -1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[0][0];
+    blurred += textureLod(colortex0, texcoord + vec2( 0.0, -1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[1][0];
+    blurred += textureLod(colortex0, texcoord + vec2( 1.0, -1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[2][0];
+    blurred += textureLod(colortex0, texcoord + vec2(-1.0,  1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[0][2];
+    blurred += textureLod(colortex0, texcoord + vec2( 0.0,  1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[1][2];
+    blurred += textureLod(colortex0, texcoord + vec2( 1.0,  1.0) * downsampledWidth, downsampling).rgb * gaussianKernels[2][2];
+    blurred += textureLod(colortex0, texcoord + vec2(-1.0,  0.0) * downsampledWidth, downsampling).rgb * gaussianKernels[0][1];
+    blurred += textureLod(colortex0, texcoord + vec2( 1.0,  0.0) * downsampledWidth, downsampling).rgb * gaussianKernels[2][1];
 
-    vec3 source = textureLod(texture, texcoord, downsampling).rgb;
+    vec3 source = textureLod(colortex0, texcoord, downsampling).rgb;
     vec3 middleBlurred = source * gaussianKernels[1][1];
 
     vec3 sharpenning = source - blurred;
@@ -115,7 +119,7 @@ void main() {
 
     #ifdef TONEMAPPING_ENABLED
         #ifdef DISTORTIONS_ENABLED
-            gl_FragData[0].rgb = mix(gl_FragData[0].rgb, pow(floor(textureLod(texture, vec2(
+            gl_FragData[0].rgb = mix(gl_FragData[0].rgb, pow(floor(textureLod(colortex0, vec2(
                 texcoord.s + sin(texcoord.s * 124.4) * cos(texcoord.t * 84.234) * 0.001,
                 texcoord.t + sin(texcoord.t * 124.4) * cos(texcoord.s * 84.234) * 0.001
             ), downsampling).rgb * 16.0) / 16.0, vec3(2.0)) * 4.0, 0.1);

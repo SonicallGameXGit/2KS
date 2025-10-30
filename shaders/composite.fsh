@@ -6,21 +6,45 @@
 
 const float sunPathRotation = 45.0;
 const bool shadowHardwareFiltering = true;
-const int shadowMapResolution = SHADOWS_QUALITY;
 const bool shadowtex0MipmapEnabled = true;
 
 varying vec2 coord0;
 
-uniform sampler2D texture, colortex1, colortex3, depthtex0;
-uniform sampler2DShadow shadowtex0;
-uniform vec3 cameraPosition, previousCameraPosition;
-uniform vec3 sunPosition, moonPosition;
-uniform vec3 skyColor;
-uniform float far;
-uniform float frameTimeCounter;
+uniform sampler2D texture, colortex3, depthtex0;
 
-uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse, gbufferPreviousModelView, gbufferPreviousProjection;
-uniform mat4 shadowModelView, shadowProjection;
+#ifdef FOG_ENABLED
+    uniform vec3 cameraPosition;
+    uniform vec3 skyColor;
+    uniform float frameTimeCounter;
+#endif
+
+#if defined(SHADOWS_ENABLED) || defined(FOG_ENABLED)
+    uniform mat4 gbufferProjectionInverse, gbufferModelViewInverse;
+    uniform float far;
+#endif
+#ifdef SHADOWS_ENABLED
+    // For some fucking reason OptiFine gives me fucking black screen because it's crap preprocessor unable to handle direct #define value usage
+    #if SHADOWS_QUALITY == 512
+        const int shadowMapResolution = 512;
+    #elif SHADOWS_QUALITY == 1024
+        const int shadowMapResolution = 1024;
+    #elif SHADOWS_QUALITY == 2048
+        const int shadowMapResolution = 2048;
+    #elif SHADOWS_QUALITY == 4096
+        const int shadowMapResolution = 4096;
+    #elif SHADOWS_QUALITY == 8192
+        const int shadowMapResolution = 8192;
+    #else
+        #error "Invalid SHADOWS_QUALITY value"
+    #endif
+
+    uniform sampler2D colortex1;
+    uniform sampler2DShadow shadowtex0;
+    uniform vec3 sunPosition, moonPosition;
+    uniform mat4 shadowModelView, shadowProjection;
+#else
+    const int shadowMapResolution = 0;
+#endif
 
 void main() {
     #ifdef NO_POSTPROCESSING
@@ -58,7 +82,7 @@ void main() {
         float shadow = 0.0;
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
-                shadow += texture(shadowtex0, shadowScreenPos + vec3(float(x), float(y), 0.0) / float(shadowMapResolution));
+                shadow += texture(shadowtex0, shadowScreenPos + vec3(float(x), float(y), 0.0) / float(SHADOWS_QUALITY));
             }
         }
         shadow /= 9.0;
@@ -71,7 +95,7 @@ void main() {
             gl_FragData[0].rgb * mix(emissiveColor.rgb, vec3(emission), pow(1.0 - emission, 0.3)),
             mix(
                 gl_FragData[0].rgb,
-                gl_FragData[0].rgb * (shadow * SHADOWS_STRENGTH + (1.0 - SHADOWS_STRENGTH))/*  * min(skyColor + 1.0, vec3(1.5)) */,
+                gl_FragData[0].rgb * (shadow * SHADOWS_STRENGTH + (1.0 - SHADOWS_STRENGTH)),
                 (1.0 - clamp(length(viewPos.xyz) / far * 4.0, 0.0, 1.0))
             ),
             1.0 - emission
