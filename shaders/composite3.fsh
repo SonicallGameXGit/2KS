@@ -1,3 +1,4 @@
+// Tonemapping & overlay layer
 #version 120
 
 #include "/lib/properties.glsl"
@@ -10,7 +11,7 @@ uniform float frameTimeCounter, aspectRatio;
 uniform float viewWidth, viewHeight;
 uniform sampler2D depthtex0, colortex0;
 
-uniform int worldTime;
+uniform int worldTime, isEyeInWater;
 
 const vec3[3] gaussianKernels = vec3[3](
     vec3(0.0625, 0.125,  0.0625),
@@ -92,6 +93,9 @@ void main() {
     #else
         float downsampling = DOWNSAMPLING;
     #endif
+    if (isEyeInWater > 0) {
+        downsampling += float(UNDERWATER_BLUR_STRENGTH);
+    }
 
     vec2 viewResolution = vec2(viewWidth, viewHeight);
     vec2 downsampledWidth = pow(2.0, downsampling) / viewResolution;
@@ -111,7 +115,7 @@ void main() {
 
     vec3 sharpenning = source - blurred;
     gl_FragData[0] = vec4(middleBlurred + blurred, 1.0);
-    gl_FragData[0].rgb += max(pow(sharpenning, vec3(2.0)) * 64.0 * SHARPNESS_STRENGTH, 0.0);
+    gl_FragData[0].rgb += max(pow(sharpenning, vec3(2.0)) * 64.0 * SHARPNESS_STRENGTH, 0.0) * (1.0 - min(isEyeInWater, 1.0));
     #ifdef TONEMAPPING_ENABLED
         gl_FragData[0].rgb = pow(gl_FragData[0].rgb, vec3(1.0 / GAMMA_CORRECTION));
         gl_FragData[0].rgb -= 0.3;

@@ -1,3 +1,4 @@
+// World layer
 #version 130
 
 #include "/lib/properties.glsl"
@@ -11,11 +12,13 @@ const bool shadowtex0MipmapEnabled = true;
 varying vec2 coord0;
 
 uniform sampler2D texture, colortex3, depthtex0;
+uniform mat4 gbufferModelView, gbufferProjection;
+uniform int isEyeInWater;
 
 #ifdef FOG_ENABLED
-    uniform vec3 cameraPosition;
-    uniform vec3 skyColor;
-    uniform float frameTimeCounter;
+    uniform vec3 cameraPosition, previousCameraPosition;
+    uniform vec3 fogColor, skyColor;
+    uniform float frameTimeCounter, aspectRatio;
 #endif
 
 #if defined(SHADOWS_ENABLED) || defined(FOG_ENABLED)
@@ -54,19 +57,19 @@ void main() {
     gl_FragData[0] = texture2D(texture, coord0);
 
     float depth = texture2D(depthtex0, coord0).r;
-    if (depth >= 1.0) {
-        return;
-    }
-
-    vec3 emissiveColor = texture2D(colortex3, coord0).rgb;
-    float emission = max(dot(emissiveColor, vec3(0.333)), 0.0);
-
     #if defined(SHADOWS_ENABLED) || defined(FOG_ENABLED)
         vec3 NDCPos = vec3(coord0, depth) * 2.0 - 1.0;
         vec4 viewPos = gbufferProjectionInverse * vec4(NDCPos, 1.0);
         viewPos.xyz /= viewPos.w;
         vec3 feetPlayerPos = (gbufferModelViewInverse * vec4(viewPos.xyz, 1.0)).xyz;
     #endif
+
+    if (depth >= 1.0) {
+        return;
+    }
+
+    vec3 emissiveColor = texture2D(colortex3, coord0).rgb;
+    float emission = max(dot(emissiveColor, vec3(0.333)), 0.0);
 
     #ifdef SHADOWS_ENABLED
         vec3 normal = texture2D(colortex1, coord0).rgb * 2.0 - 1.0;
@@ -101,9 +104,54 @@ void main() {
             1.0 - emission
         );
     #endif
+
     #ifdef FOG_ENABLED
-        float fogFactor = exp(-FOG_DENSITY * (1.0 - length(viewPos.xyz) / far / FOG_DISTANCE));
-        fogFactor *= 1.0 + snoise((cameraPosition + feetPlayerPos) / 24.0 + frameTimeCounter * 0.3) * 0.2;
-        gl_FragData[0].rgb = mix(gl_FragData[0].rgb, skyColor * 0.7, clamp(fogFactor, 0.0, 1.0));
+        vec3 finalFogColor = skyColor * 0.7;
+        float fogDensityModifier = 1.0;
+        float fogDistanceModifier = 1.0;
+        vec3 viewVector = (gbufferModelView * vec4(0.0, 0.0, 1.0, 0.0)).xyz;
+
+        switch (isEyeInWater) {
+            case 0: break;
+            case 1: { // Water
+                finalFogColor *= fogColor * 1.5;
+                finalFogColor = mix(finalFogColor, vec3(0.1, 0.6, 0.2), (snoise(vec3(coord0, frameTimeCounter * 0.2) + viewVector * 0.5 + 0.5) * 0.5 + 0.5) * 0.4);
+                finalFogColor = mix(finalFogColor, vec3(0.2, 0.3, 0.1), (snoise(vec3(coord0, frameTimeCounter * 0.321) + viewVector * 0.5 + 0.5 + vec3(0.2342, -3.234, 12.2931)) * 0.5 + 0.5) * 0.4);
+                gl_FragData[0].rgb = mix(gl_FragData[0].rgb, finalFogColor, 0.2);
+
+                vec2 texcoord = coord0;
+                texcoord.x *= aspectRatio;
+                float dust = snoise(vec3(texcoord * 64.0, fract(frameTimeCounter * 1.2 / 4.0) * 4.0 + abs(viewVector.x) + abs(viewVector.y) + abs(viewVector.z)) + length(cameraPosition - previousCameraPosition) * 32.0) * 0.5 + 0.5;
+                dust *= (snoise(vec3(texcoord * 39.0, fract(frameTimeCounter * 1.342 / 4.0) * 4.0 + (abs(viewVector.x) + abs(viewVector.y) + abs(viewVector.z)) * 4.0 + abs(length(cameraPosition - previousCameraPosition)) * 32.0)) * 0.5 + 0.5);
+                dust = smoothstep(0.0, 0.04, dust);
+
+                finalFogColor *= dust * 0.05 + 0.95;
+                
+                fogDensityModifier = WATER_FOG_DENSITY;
+                fogDistanceModifier = WATER_FOG_DISTANCE;
+                break;
+            }
+            case 2: { // Lava
+                finalFogColor = vec3(1.0, 0.1, 0.02) * 2.0;
+                gl_FragData[0].rgb = mix(gl_FragData[0].rgb, finalFogColor, 0.3);
+
+                fogDensityModifier = LAVA_FOG_DENSITY;
+                fogDistanceModifier = LAVA_FOG_DISTANCE;
+                break;
+            }
+            case 3: { // Powdered Snow
+                finalFogColor *= fogColor * 2.0;
+                gl_FragData[0].rgb = mix(gl_FragData[0].rgb, finalFogColor, 0.3);
+
+                fogDensityModifier = SNOW_FOG_DENSITY;
+                fogDistanceModifier = SNOW_FOG_DISTANCE;
+                break;
+            }
+            default: break;
+        }
+
+        float fogFactor = exp(-FOG_DENSITY * fogDensityModifier * (1.0 - length(viewPos) / far / (FOG_DISTANCE * fogDistanceModifier)));
+        fogFactor = clamp(fogFactor, 0.0, 1.0) + snoise((cameraPosition + feetPlayerPos) / 24.0 + frameTimeCounter * 0.3) * (0.3 / far / (FOG_DISTANCE * fogDistanceModifier));
+        gl_FragData[0].rgb = mix(gl_FragData[0].rgb, finalFogColor, clamp(fogFactor, 0.0, 1.0));
     #endif
 }

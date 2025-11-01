@@ -1,3 +1,4 @@
+// Polishing layer
 #version 120
 #include "/lib/properties.glsl"
 

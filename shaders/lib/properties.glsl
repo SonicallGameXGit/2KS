@@ -45,6 +45,12 @@
 #define FOG_ENABLED
 #define FOG_DENSITY 2.0                   // [0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0]
 #define FOG_DISTANCE 0.5                  // [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
+#define WATER_FOG_DENSITY 0.6             // [0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0]
+#define WATER_FOG_DISTANCE 0.6            // [0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
+#define LAVA_FOG_DENSITY 0.1              // [0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0]
+#define LAVA_FOG_DISTANCE 0.05            // [0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
+#define SNOW_FOG_DENSITY 0.1              // [0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0]
+#define SNOW_FOG_DISTANCE 0.05            // [0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
 
 
 #define SHADOWS_ENABLED
@@ -68,6 +74,7 @@
 
 #define FISHEYE_STRENGTH 0.1              // [0.0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5]
 #define DISTANCE_BLUR_ENABLED
+#define UNDERWATER_BLUR_STRENGTH 3        // [0 1 2 3 4 5]
 
 
 #define DATE_TIME_ENABLED
